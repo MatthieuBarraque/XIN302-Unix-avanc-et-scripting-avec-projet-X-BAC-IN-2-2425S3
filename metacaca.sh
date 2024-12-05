@@ -47,9 +47,11 @@ return_to_menu() {
 
 validate_ip() {
     local ip="$1"
-    if [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-        for octet in ${ip//./ }; do
-            if (( octet == 0 || octet == 255 )); then
+    if [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))?$ ]]; then
+        IFS='/' read -r base_ip mask <<< "$ip"
+        IFS='.' read -r -a octets <<< "$base_ip"
+        for octet in "${octets[@]}"; do
+            if ((octet < 0 || octet > 255)); then
                 return 1
             fi
         done
@@ -60,23 +62,23 @@ validate_ip() {
 }
 
 list_ips_and_mac() {
-    echo -e "${BLUE}Utilisation de netdiscover pour lister les IP et adresses MAC...${NC}"
-    echo ""
+    local ip_range="192.168.0.0/24"
 
+    echo -e "${BLUE}Utilisation de netdiscover pour lister les IP et adresses MAC...${NC}"
     if ! command -v netdiscover &> /dev/null; then
         echo -e "${RED}Erreur : netdiscover n'est pas installé. Veuillez l'installer et réessayer.${NC}"
         return_to_menu
         return
     fi
 
-    sudo netdiscover -r 192.168.1.0/24 -P > netdiscover_output.txt
+    sudo netdiscover -r $ip_range -P > netdiscover_output.txt
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Scan netdiscover terminé.${NC}"
         parse_ips_and_hosts
     else
         echo -e "${RED}Erreur lors de l'exécution de netdiscover.${NC}"
+        return_to_menu
     fi
-    return_to_menu
 }
 
 parse_ips_and_hosts() {
@@ -184,11 +186,9 @@ scan_with_masscan() {
 }
 
 scan_with_nikto() {
-    echo -e "${YELLOW}Entrez l'adresse du site web à scanner avec Nikto (ex: http://example.com) :${NC}"
-    read -p "metacaca > " website_target
+    read -p "Entrez l'adresse du site web à scanner avec Nikto (ex: http://example.com) > " website_target
     echo -e "${BLUE}Scan Nikto en cours sur : $website_target${NC}"
-    sudo nikto -h "$website_target"
-    if [ $? -ne 0 ]; then
+    if ! sudo nikto -h "$website_target"; then
         echo -e "${RED}Erreur lors de l'exécution de Nikto.${NC}"
     else
         echo -e "${GREEN}Scan Nikto terminé pour $website_target.${NC}"
