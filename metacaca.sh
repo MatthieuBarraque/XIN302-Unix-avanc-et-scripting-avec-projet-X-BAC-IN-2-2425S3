@@ -242,6 +242,76 @@ schedule_scan() {
     return_to_menu
 }
 
+manage_scheduled_scans() {
+    while true; do
+        echo -e "${YELLOW}=== Gestion des scans planifiés ===${NC}"
+        echo "1) Visualiser les scans planifiés"
+        echo "2) Annuler un scan"
+        echo "3) Modifier la fréquence ou la plage horaire d'un scan"
+        echo "4) Retour au menu principal"
+        read -p "metacaca > " manage_choice
+
+        case $manage_choice in
+            1)
+                echo -e "${BLUE}Scans planifiés actuels :${NC}"
+                crontab -l || echo -e "${RED}Aucun scan planifié.${NC}"
+                ;;
+            2)
+                echo -e "${YELLOW}Entrez la ligne du scan à annuler (ex : '* * * * * sudo nmap -sS ...') :${NC}"
+                crontab -l > cron_temp
+                read -p "metacaca > " line_to_remove
+                grep -v "$line_to_remove" cron_temp > new_cron_temp
+                crontab new_cron_temp
+                rm cron_temp new_cron_temp
+                echo -e "${GREEN}Scan annulé avec succès.${NC}"
+                ;;
+            3)
+                echo -e "${YELLOW}Entrez la ligne du scan à modifier :${NC}"
+                crontab -l > cron_temp
+                read -p "metacaca > " line_to_modify
+
+                if grep -q "$line_to_modify" cron_temp; then
+                    echo -e "${BLUE}Entrez le nouveau délai (1 pour toutes les minutes, 5 pour toutes les 5 minutes, etc.) :${NC}"
+                    echo "1) Toutes les minutes"
+                    echo "2) Toutes les 5 minutes"
+                    echo "3) Toutes les 10 minutes"
+                    echo "4) Toutes les heures"
+                    echo "5) À une heure spécifique"
+                    read -p "metacaca > " new_schedule_choice
+
+                    case $new_schedule_choice in
+                        1) new_schedule="* * * * *";;
+                        2) new_schedule="*/5 * * * *";;
+                        3) new_schedule="*/10 * * * *";;
+                        4) new_schedule="0 * * * *";;
+                        5)
+                            echo -e "${YELLOW}Entrez l'heure (format HH:MM, ex : 02:30 pour 2h30 du matin) :${NC}"
+                            read -p "metacaca > " specific_time
+                            new_schedule="$(echo "$specific_time" | awk -F: '{print $2, $1, "* * *"}')"
+                            ;;
+                        *)
+                            echo -e "${RED}Option invalide.${NC}"
+                            ;;
+                    esac
+
+                    sed -i "/$line_to_modify/c\\$new_schedule $line_to_modify" cron_temp
+                    crontab cron_temp
+                    echo -e "${GREEN}Fréquence du scan modifiée avec succès.${NC}"
+                else
+                    echo -e "${RED}Scan non trouvé.${NC}"
+                fi
+                rm cron_temp
+                ;;
+            4)
+                return
+                ;;
+            *)
+                echo -e "${RED}Option invalide.${NC}"
+                ;;
+        esac
+    done
+}
+
 main_menu() {
     while true; do
         echo -e "${BLUE}============================"
