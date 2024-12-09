@@ -62,7 +62,7 @@ validate_ip() {
 }
 
 list_ips_and_mac() {
-    local ip_range="192.168.0.0/24"
+    local ip_range="192.168.1.0/24"
 
     echo -e "${BLUE}Utilisation de netdiscover pour lister les IP et adresses MAC...${NC}"
     if ! command -v netdiscover &> /dev/null; then
@@ -193,6 +193,52 @@ scan_with_nikto() {
     else
         echo -e "${GREEN}Scan Nikto terminé pour $website_target.${NC}"
     fi
+    return_to_menu
+}
+
+schedule_scan() {
+    echo -e "${YELLOW}Entrez l'adresse IP ou la plage d'IP à scanner automatiquement (ex: 192.168.0.1/24):${NC}"
+    read -p "metacaca > " ip_target
+
+    if validate_ip "$ip_target"; then
+        echo -e "${YELLOW}Sélectionnez le type de scan Nmap à automatiser :${NC}"
+        nmap_scan_options
+        read -p "metacaca > " scan_type
+
+        case $scan_type in
+            1) nmap_command="sudo nmap -sS -T4 $ip_target";;
+            2) nmap_command="sudo nmap -p- -T4 $ip_target";;
+            3) nmap_command="sudo nmap -A -T4 $ip_target";;
+            4) nmap_command="sudo nmap --script vuln -T4 $ip_target";;
+            5)
+                echo -e "${YELLOW}Entrez les ports à scanner (ex: 80,443 ou 1-1000):${NC}"
+                read -p "metacaca > " custom_ports
+                nmap_command="sudo nmap -p $custom_ports -T4 $ip_target"
+                ;;
+            6) nmap_command="sudo nmap -sU -T4 $ip_target";;
+            7) nmap_command="sudo nmap -f -T4 $ip_target";;
+            *)
+                echo -e "${RED}Option invalide. Retour au menu principal.${NC}"
+                return_to_menu
+                return
+                ;;
+        esac
+
+        echo -e "${YELLOW}Entrez la fréquence du scan (format cron, ex: '0 2 * * *' pour 2h tous les jours):${NC}"
+        read -p "metacaca > " cron_schedule
+
+        cron_job="$cron_schedule $nmap_command >> ~/nmap_scan.log 2>&1"
+        (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
+
+        if [ $? -eq 0 ]; then
+            echo -e "${GREEN}Le scan Nmap a été planifié avec succès. Les résultats seront enregistrés dans ~/nmap_scan.log.${NC}"
+        else
+            echo -e "${RED}Une erreur s'est produite lors de la planification du scan.${NC}"
+        fi
+    else
+        echo -e "${RED}Adresse IP ou plage invalide.${NC}"
+    fi
+
     return_to_menu
 }
 

@@ -1,17 +1,14 @@
 #!/bin/bash
 
-# Couleurs pour l'affichage
 RED="\033[1;31m"
 GREEN="\033[1;32m"
 YELLOW="\033[1;33m"
 NC="\033[0m"
 
-# Fonction pour vérifier si un programme est installé
 is_installed() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Fonction pour installer un programme s'il n'est pas déjà installé
 install_tool() {
     tool_name=$1
     package_name=$2
@@ -29,20 +26,15 @@ install_tool() {
     fi
 }
 
-# Mettre à jour les paquets
 echo -e "${YELLOW}Mise à jour des paquets...${NC}"
 sudo apt-get update
 
-# Installer Nmap
 install_tool "nmap" "nmap"
 
-# Installer Masscan
 install_tool "masscan" "masscan"
 
-# Installer Nikto
 install_tool "nikto" "nikto"
 
-# Installer Netdiscover
 install_tool "netdiscover" "netdiscover"
 
 echo -e "${GREEN}Tous les outils nécessaires ont été installés.${NC}"
