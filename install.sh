@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# UNIQUEMENT VALIDE POUR Systeme d'exploitation basé sur Debian (Ubuntu, Kali Linux, etc.)
+# Ce script installe les outils nécessaires pour le cours de sécurité informatique
+
 RED="\033[1;31m"
 GREEN="\033[1;32m"
 YELLOW="\033[1;33m"
