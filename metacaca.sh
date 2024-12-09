@@ -322,7 +322,8 @@ main_menu() {
         echo "3) Scanner avec Masscan (rapide)"
         echo "4) Scanner des vulnérabilités web (Nikto)"
         echo "5) Automatiser un scan avec cron"
-        echo "6) Quitter"
+        echo "6) Gérer les scans planifiés"
+        echo "7) Quitter"
         read -p "metacaca > " choice
 
         case $choice in
@@ -342,6 +343,9 @@ main_menu() {
                 schedule_scan
                 ;;
             6)
+                manage_scheduled_scans
+                ;;
+            7)
                 echo -e "${BLUE}Au revoir!${NC}"
                 exit 0
                 ;;
