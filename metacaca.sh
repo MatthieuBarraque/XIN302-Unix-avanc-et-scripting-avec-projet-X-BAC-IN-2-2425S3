@@ -99,7 +99,6 @@ list_ips_and_mac() {
     fi
 }
 
-
 parse_ips_and_hosts() {
     echo -e "${YELLOW}IP et noms d'hôte détectés sur le réseau :${NC}"
     grep -E '([0-9]{1,3}\.){3}[0-9]{1,3}' netdiscover_output.txt | while read -r line; do
@@ -262,14 +261,30 @@ schedule_scan() {
                 ;;
         esac
 
-        echo -e "${YELLOW}Entrez la fréquence du scan (format cron, ex: '0 2 * * *' pour 2h tous les jours):${NC}"
-        read -p "metacaca > " cron_schedule
+        echo -e "${YELLOW}Entrez la fréquence du scan (1: Toutes les minutes, 2: Toutes les 5 minutes, 3: Toutes les 10 minutes, 4: Toutes les heures):${NC}"
+        echo "1) Toutes les minutes"
+        echo "2) Toutes les 5 minutes"
+        echo "3) Toutes les 10 minutes"
+        echo "4) Toutes les heures"
+        read -p "metacaca > " schedule_choice
 
-        cron_job="$cron_schedule $nmap_command >> ~/nmap_scan.log 2>&1"
+        case $schedule_choice in
+            1) cron_schedule="* * * * *";;
+            2) cron_schedule="*/5 * * * *";;
+            3) cron_schedule="*/10 * * * *";;
+            4) cron_schedule="0 * * * *";;
+            *)
+                echo -e "${RED}Option invalide.${NC}"
+                return_to_menu
+                return
+                ;;
+        esac
+
+        cron_job="$cron_schedule $nmap_command >> $(dirname "$(readlink -f "$0")")/nmap_scan.log 2>&1"
         (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
 
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}Le scan Nmap a été planifié avec succès. Les résultats seront enregistrés dans ~/nmap_scan.log.${NC}"
+            echo -e "${GREEN}Le scan Nmap a été planifié avec succès. Les résultats seront enregistrés dans le même dossier que le script actuel.${NC}"
         else
             echo -e "${RED}Une erreur s'est produite lors de la planification du scan.${NC}"
         fi
@@ -292,29 +307,35 @@ manage_scheduled_scans() {
         case $manage_choice in
             1)
                 echo -e "${BLUE}Scans planifiés actuels :${NC}"
-                crontab -l || echo -e "${RED}Aucun scan planifié.${NC}"
+                if crontab -l 2>/dev/null | grep -q "nmap"; then
+                    crontab -l | grep "nmap"
+                else
+                    echo -e "${RED}Aucun scan planifié.${NC}"
+                fi
                 ;;
             2)
-                echo -e "${YELLOW}Entrez la ligne du scan à annuler (ex : '* * * * * sudo nmap -sS ...') :${NC}"
+                echo -e "${YELLOW}Entrez une chaîne unique du scan à annuler (ex: 'nmap -sS') :${NC}"
                 crontab -l > cron_temp
                 read -p "metacaca > " line_to_remove
-                grep -v "$line_to_remove" cron_temp > new_cron_temp
-                crontab new_cron_temp
-                rm cron_temp new_cron_temp
-                echo -e "${GREEN}Scan annulé avec succès.${NC}"
+                if grep -q "$line_to_remove" cron_temp; then
+                    grep -v "$line_to_remove" cron_temp > new_cron_temp
+                    crontab new_cron_temp
+                    echo -e "${GREEN}Scan annulé avec succès.${NC}"
+                else
+                    echo -e "${RED}Aucun scan correspondant trouvé.${NC}"
+                fi
+                rm -f cron_temp new_cron_temp
                 ;;
             3)
-                echo -e "${YELLOW}Entrez la ligne du scan à modifier :${NC}"
+                echo -e "${YELLOW}Entrez une chaîne unique du scan à modifier (ex: 'nmap -sS') :${NC}"
                 crontab -l > cron_temp
                 read -p "metacaca > " line_to_modify
-
                 if grep -q "$line_to_modify" cron_temp; then
-                    echo -e "${BLUE}Entrez le nouveau délai (1 pour toutes les minutes, 5 pour toutes les 5 minutes, etc.) :${NC}"
+                    echo -e "${BLUE}Entrez le nouveau délai (1 pour toutes les minutes, 2 pour toutes les 5 minutes, etc.) :${NC}"
                     echo "1) Toutes les minutes"
                     echo "2) Toutes les 5 minutes"
                     echo "3) Toutes les 10 minutes"
                     echo "4) Toutes les heures"
-                    echo "5) À une heure spécifique"
                     read -p "metacaca > " new_schedule_choice
 
                     case $new_schedule_choice in
@@ -322,13 +343,9 @@ manage_scheduled_scans() {
                         2) new_schedule="*/5 * * * *";;
                         3) new_schedule="*/10 * * * *";;
                         4) new_schedule="0 * * * *";;
-                        5)
-                            echo -e "${YELLOW}Entrez l'heure (format HH:MM, ex : 02:30 pour 2h30 du matin) :${NC}"
-                            read -p "metacaca > " specific_time
-                            new_schedule="$(echo "$specific_time" | awk -F: '{print $2, $1, "* * *"}')"
-                            ;;
                         *)
                             echo -e "${RED}Option invalide.${NC}"
+                            continue
                             ;;
                     esac
 
@@ -336,9 +353,9 @@ manage_scheduled_scans() {
                     crontab cron_temp
                     echo -e "${GREEN}Fréquence du scan modifiée avec succès.${NC}"
                 else
-                    echo -e "${RED}Scan non trouvé.${NC}"
+                    echo -e "${RED}Aucun scan correspondant trouvé.${NC}"
                 fi
-                rm cron_temp
+                rm -f cron_temp
                 ;;
             4)
                 return
