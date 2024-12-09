@@ -62,7 +62,25 @@ validate_ip() {
 }
 
 list_ips_and_mac() {
-    local ip_range="192.168.1.0/24"
+    echo -e "${BLUE}Détection automatique de la plage d'IP...${NC}"
+    local ip_range
+
+    active_interface=$(ip route | grep '^default' | awk '{print $5}')
+    if [[ -z "$active_interface" ]]; then
+        echo -e "${RED}Aucune interface réseau active détectée. Vérifiez votre connexion.${NC}"
+        return_to_menu
+        return
+    fi
+
+    ip_info=$(ip -o -f inet addr show "$active_interface" | awk '{print $4}')
+    if [[ -z "$ip_info" ]]; then
+        echo -e "${RED}Impossible de déterminer la plage d'IP pour l'interface $active_interface.${NC}"
+        return_to_menu
+        return
+    fi
+
+    ip_range="$ip_info"
+    echo -e "${GREEN}Plage d'IP détectée : $ip_range${NC}"
 
     echo -e "${BLUE}Utilisation de netdiscover pour lister les IP et adresses MAC...${NC}"
     if ! command -v netdiscover &> /dev/null; then
@@ -71,7 +89,7 @@ list_ips_and_mac() {
         return
     fi
 
-    sudo netdiscover -r $ip_range -P > netdiscover_output.txt
+    sudo netdiscover -r "$ip_range" -P > netdiscover_output.txt
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Scan netdiscover terminé.${NC}"
         parse_ips_and_hosts
@@ -80,6 +98,7 @@ list_ips_and_mac() {
         return_to_menu
     fi
 }
+
 
 parse_ips_and_hosts() {
     echo -e "${YELLOW}IP et noms d'hôte détectés sur le réseau :${NC}"
