@@ -110,6 +110,7 @@ scan_with_nmap() {
 
     echo -e "${YELLOW}Voulez-vous scanner toutes ces IPs avec Nmap ? (y/n)${NC}"
     read -p "metacaca > " choice
+
     if [[ "$choice" == "y" || "$choice" == "Y" ]]; then
         ips=$(grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' netdiscover_output.txt | sort -u)
         nmap_scan_options
@@ -117,56 +118,74 @@ scan_with_nmap() {
 
         for ip in $ips; do
             if validate_ip "$ip"; then
-                case $scan_type in
-                    1)
-                        echo -e "${BLUE}Scan SYN rapide de l'IP : $ip${NC}"
-                        sudo nmap -sS -T4 "$ip"
-                        ;;
-                    2)
-                        echo -e "${BLUE}Scan complet de l'IP : $ip${NC}"
-                        sudo nmap -p- -T4 "$ip"
-                        ;;
-                    3)
-                        echo -e "${BLUE}Scan OS et services de l'IP : $ip${NC}"
-                        sudo nmap -A -T4 "$ip"
-                        ;;
-                    4)
-                        echo -e "${BLUE}Scan de vulnérabilité de l'IP : $ip${NC}"
-                        sudo nmap --script vuln -T4 "$ip"
-                        ;;
-                    5)
-                        echo -e "${YELLOW}Entrez les ports à scanner (ex: 80,443 ou 1-1000) :${NC}"
-                        read -p "metacaca > " custom_ports
-                        echo -e "${BLUE}Scan personnalisé de l'IP : $ip sur les ports $custom_ports${NC}"
-                        sudo nmap -p "$custom_ports" -T4 "$ip"
-                        ;;
-                    6)
-                        echo -e "${BLUE}Scan UDP de l'IP : $ip${NC}"
-                        sudo nmap -sU -T4 "$ip"
-                        ;;
-                    7)
-                        echo -e "${BLUE}Scan de fragmentation de l'IP : $ip${NC}"
-                        sudo nmap -f -T4 "$ip"
-                        ;;
-                    *)
-                        echo -e "${RED}Option de scan invalide.${NC}"
-                        ;;
-                esac
-
-                if [ $? -ne 0 ]; then
-                    echo -e "${RED}Erreur lors du scan Nmap de l'IP $ip.${NC}"
-                else
-                    echo -e "${GREEN}Scan Nmap terminé pour l'IP $ip.${NC}"
-                fi
+                perform_nmap_scan "$ip" "$scan_type"
             else
                 echo -e "${RED}IP invalide ignorée : $ip${NC}"
             fi
         done
+    elif [[ "$choice" == "n" || "$choice" == "N" ]]; then
+        echo -e "${YELLOW}Entrez l'adresse IP que vous souhaitez scanner :${NC}"
+        read -p "metacaca > " specific_ip
+        if validate_ip "$specific_ip"; then
+            nmap_scan_options
+            read -p "metacaca > " scan_type
+            perform_nmap_scan "$specific_ip" "$scan_type"
+        else
+            echo -e "${RED}Adresse IP invalide. Retour au menu principal.${NC}"
+        fi
     else
         echo -e "${RED}Scan annulé.${NC}"
         return_to_menu
     fi
 }
+
+perform_nmap_scan() {
+    local ip=$1
+    local scan_type=$2
+
+    case $scan_type in
+        1)
+            echo -e "${BLUE}Scan SYN rapide de l'IP : $ip${NC}"
+            sudo nmap -sS -T4 "$ip"
+            ;;
+        2)
+            echo -e "${BLUE}Scan complet de l'IP : $ip${NC}"
+            sudo nmap -p- -T4 "$ip"
+            ;;
+        3)
+            echo -e "${BLUE}Scan OS et services de l'IP : $ip${NC}"
+            sudo nmap -A -T4 "$ip"
+            ;;
+        4)
+            echo -e "${BLUE}Scan de vulnérabilité de l'IP : $ip${NC}"
+            sudo nmap --script vuln -T4 "$ip"
+            ;;
+        5)
+            echo -e "${YELLOW}Entrez les ports à scanner (ex: 80,443 ou 1-1000) :${NC}"
+            read -p "metacaca > " custom_ports
+            echo -e "${BLUE}Scan personnalisé de l'IP : $ip sur les ports $custom_ports${NC}"
+            sudo nmap -p "$custom_ports" -T4 "$ip"
+            ;;
+        6)
+            echo -e "${BLUE}Scan UDP de l'IP : $ip${NC}"
+            sudo nmap -sU -T4 "$ip"
+            ;;
+        7)
+            echo -e "${BLUE}Scan de fragmentation de l'IP : $ip${NC}"
+            sudo nmap -f -T4 "$ip"
+            ;;
+        *)
+            echo -e "${RED}Option de scan invalide.${NC}"
+            ;;
+    esac
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Erreur lors du scan Nmap de l'IP $ip.${NC}"
+    else
+        echo -e "${GREEN}Scan Nmap terminé pour l'IP $ip.${NC}"
+    fi
+}
+
 
 scan_with_masscan() {
     echo -e "${YELLOW}Entrez l'adresse IP ou la plage d'IP à scanner avec Masscan :${NC}"
